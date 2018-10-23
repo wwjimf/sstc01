@@ -25,4 +25,5 @@
     DhcpScope   = "192.168.1.0"
     DnsServer   = "SSDC03"
     DnsZone     = "SolarSystem.Home"
+    WebUri      = 'http://sstc01.solarsystem.home:8111'
 } 

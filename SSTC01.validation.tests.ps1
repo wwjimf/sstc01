@@ -72,7 +72,7 @@ Describe "The VM -- $NodeName" {
     }
 
     It 'The webserver returns status 200' {
-        $result = Invoke-WebRequest -Uri http://sstc01.solarsystem.home:8111
+        $result = Invoke-WebRequest -Uri $config.WebUri
         $result.StatusCode | Should -Be 200
     }
 }
