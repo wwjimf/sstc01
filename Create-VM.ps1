@@ -1,25 +1,43 @@
-﻿Param (
+﻿#Requires -RunAsAdministrator
+#Requires -Version 5.0
+#Requires -Modules ActiveDirectory, Hyper-V, DhcpServer, PSDesiredStateConfiguration, PackageManagementProviderResource, ComputerManagementDsc, cChoco
+
+Param (
     $nodeName = 'SSTC01',
     $ConfigDataPath = ("$PsScriptRoot\configdata.psd1"),
-    $DomainJoinCredential = (Get-Credential -Message "Please enter the Domain Join Credential")
+    $DomainJoinCredential = (Get-Credential -Message "Please enter the Domain Join Credential"),
+    $TeamCityCredential = (Get-Credential -Message "Please enter the TeamCity Service Account Credential")
 )
 
 $Config = Import-PowerShellDataFile -Path $ConfigDataPath
 
 # clean up any pre-existing vm
 if (Get-VM -Name $nodeName -ErrorAction SilentlyContinue -OutVariable v) {
+    
+    ## Function CleanUpVM
     If($v.State -eq 'Running') {
         $v | Stop-VM -Force -Verbose
     }
-    Remove-DhcpServerv4Lease -ComputerName $Config.DhcpServer -ScopeId $Config.DhcpScope -ClientId $v.networkadapters[0].MacAddress -Verbose
+    if (get-dhcpserverv4lease -computername $Config.DhcpServer -ScopeId $Config.DhcpScope -clientId $v.NetworkAdapters[0].MacAddress) {
+        Remove-DhcpServerv4Lease -ComputerName $Config.DhcpServer -ScopeId $Config.DhcpScope -ClientId $v.networkadapters[0].MacAddress -Verbose
+    }
+
+    If ( Get-DnsServerResourceRecord -Name $nodeName -ComputerName $Config.DnsServer -ZoneName $Config.DnsZone) {
+        Remove-DnsServerResourceRecord -computername $Config.DnsServer -ZoneName $Config.DnsZone -Name $nodeName -RRType A -Force -Confirm:$false -Verbose
+        Remove-DnsServerResourceRecord -computername $Config.DnsServer -ZoneName $Config.DnsZone -Name $nodeName -RRType AAAA -Force -Confirm:$false -Verbose
+    }    
+    
     $v | Remove-VM -Force -Verbose
+    
     Start-Sleep -Seconds 5
+
     $comp = Get-AdComputer -Identity $nodeName -ErrorAction SilentlyContinue
     if ($comp) {
         $comp | Remove-ADObject -Recursive -Confirm:$false -Verbose
     }
 }
 
+## Function CreateVirtualDiskFromTemplate
 $hvPath = "$($Config.HyperVPath)\$nodeName"
 if(Test-Path $hvPath ) {
     remove-item $hvPath -Recurse -Force
@@ -28,9 +46,10 @@ if(Test-Path $hvPath ) {
 if (-not(test-path $hvPath)) {
     New-Item -ItemType Directory -Path $hvPath
 }
-$vmDisk = "$hvPath\$nodeName\$nodeName.vhdx"
+$vmDisk = "$hvPath\$nodeName.vhdx"
 copy-item $($Config.TemplateVhd) -Destination $vmDisk -Verbose -force
 
+## Function InitialiseModules
 $modules = @('PackageManagementProviderResource', 'ComputerManagementDsc', 'cChoco')
 foreach($m in $modules) {
     If(-not (get-module -Name $m -ListAvailable)) {
@@ -44,15 +63,19 @@ If(-not(Test-Path $locModules)) {
 }
 
 foreach($m in $Modules) {
-    Save-Module -Name $m -Path $locMdules -Force
+    Save-Module -Name $m -Path $locModules -Force
 }
 
+## Function Compile MetaMof
+$locInitialSetup = "$PSScriptroot\Initialsetup"
 . $PsScriptRoot\DscMetaConfig.ps1
-DscMetaConfig -OutputPath $PSScriptroot\Initialsetup
+DscMetaConfig -OutputPath $locInitialSetup
 
+## Function Compile Mof
 . $PSScriptRoot\DscSSTC01.ps1
-InitialSetup -ConfigurationData $Config -OutputPath $PSScriptroot\Initialsetup -Credential $DomainJoinCredential
+InitialSetup -ConfigurationData $Config -OutputPath $locInitialSetup -Credential $DomainJoinCredential -TeamCityCredential $TeamCityCredential
 
+## Function CreateVM
 $vmProps = @{
     Name = $nodeName
     Path = $hvPath
@@ -63,6 +86,8 @@ $vmProps = @{
 }
 New-VM @VmProps
 Set-VM -Name SSTC01 -ProcessorCount 2 -DynamicMemory
+
+## Function InjectVmFiles
 $mount = Mount-vhd -Path $vmDisk -passthru
 
 $drv = ($mount | get-disk | Get-Partition | Get-Volume | Where DriveLetter).DriveLetter
@@ -91,5 +116,29 @@ Copy-item $locJetBrains -Destination $RemProgramData -Recurse -Force -verbose
 Copy-Item $locBuild -Destination "$remRoot\" -recurse -force
 
 Dismount-VHD -Path $vmDisk
-# remove-item $psscriptroot\InitialSetup -Recurse -force
-Get-VM -Name SSTC01 | Start-VM
+
+remove-item $psscriptroot\InitialSetup -Recurse -force
+
+Get-VM -Name $nodeName | Start-VM
+
+# Function WaitFor
+Write-Progress -id 1 -Activity "Waiting for vm build and config to complete" -PercentComplete -1
+$i = 0
+$complete = $false
+While($complete -eq $false) {
+    $i++
+    Write-Progress -id 1 -Activity "Waiting for vm build and config to complete" -Status "Waiting $i test iterations..." -PercentComplete -1
+    $results = invoke-pester -Script $PSScriptRoot\SSTC01.validation.tests.ps1 -Show None -PassThru
+    If ($results.FailedCount -eq 0) {
+        Write-Progress -id 1 -Activity "Waiting for vm build and config to complete" -Status "Configuration Complete" -PercentComplete -1
+        $complete = $true
+        Write-Progress -id 1 -Activity "Waiting for vm build and config to complete" -Completed
+        $results
+    } else {
+        Clear-Host
+        $results.TestResult | where Result -eq 'Failed'
+        $sleep = 30
+        Write-Progress -id 1 -Activity "Waiting for vm build and config to complete" -Status "Sleeping for $sleep seconds" -PercentComplete -1
+        start-sleep -seconds $sleep
+    }   
+}

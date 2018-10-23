@@ -16,9 +16,11 @@
     HyperVHost  = 'SSAPP03'
     HyperVPath  = 'D:\Hyper-V\VHD'
     TemplateVhd = 'D:\Templates\1803_template.vhdx'
-    VmRam       = "1GB"
+    VmRam       = 1GB
     VmSwitch    = "SSAPP03-Switch-01"
     VmGen       = 2
     DhcpServer  = "SSDC03"
     DhcpScope   = "192.168.1.0"
+    DnsServer   = "SSDC03"
+    DnsZone     = "SolarSystem.Home"
 } 

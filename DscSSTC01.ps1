@@ -9,12 +9,21 @@ Configuration InitialSetup
         [Parameter(Mandatory = $true)]
         [ValidateNotNullorEmpty()]
         [System.Management.Automation.PSCredential]
-        $Credential
+        $Credential,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullorEmpty()]
+        [System.Management.Automation.PSCredential]
+        $TeamCityCredential
+
+
     )
     Import-DscResource -ModuleName PSDesiredStateConfiguration
     Import-DscResource -ModuleName PackageManagementProviderResource
     Import-DscResource -ModuleName ComputerManagementDsc
     Import-DscResource -ModuleName cChoco
+
+
 
     Node ($Computername)
     {
@@ -51,11 +60,14 @@ Configuration InitialSetup
             InstallDir = "C:\choco"
         }
 
+        $netCred = $TeamCityCredential.GetNetworkCredential()
+        $paramString = "username=$($netCred.Username) password=$($netCred.Password) domain=$($netCred.Domain)"
+
         cChocoPackageInstaller installTeamCity
         {
             Name      = 'TeamCity'
             Ensure    = 'Present'
-            Params    = "username=teamcity password=Ictoadp1! domain=SolarSystem"
+            Params    = $paramstring
             Dependson = '[cChocoInstaller]installChoco'
         }
 
