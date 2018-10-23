@@ -1,0 +1,14 @@
+<root>
+  <page path="/">
+    <usage userId="1" timestamp="1540223707828" />
+  </page>
+  <page path="/admin/admin.html">
+    <usage userId="1" timestamp="1540223720662" />
+  </page>
+  <page path="/profile.html">
+    <usage userId="1" timestamp="1540223518917" />
+  </page>
+  <page path="/showAgreement.html">
+    <usage userId="1" timestamp="1540223592355" />
+  </page>
+</root>
