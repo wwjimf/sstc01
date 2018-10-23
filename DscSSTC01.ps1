@@ -29,9 +29,9 @@ Configuration InitialSetup
     {
         Computer JoinDomain
         {
-            Name       = 'SSTC01'
-            DomainName = 'SolarSystem.Home'
-            JoinOU     = 'OU=Servers,OU=BRE,OU=UK,DC=SolarSystem,DC=Home'
+            Name       = $node.NodeName
+            DomainName = $node.DomainName
+            JoinOU     = $node.JoinOU
             Credential = $Credential # Credential to join to domain
         } 
 

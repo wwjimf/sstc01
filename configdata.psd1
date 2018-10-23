@@ -1,16 +1,18 @@
 ﻿@{   
     AllNodes = @(
-        @{     
-            NodeName = "LocalHost" 
+        @{
+            NodeName = "*" 
             # Allows credential to be saved in plain-text in the the *.mof instance document.                             
             PSDscAllowPlainTextPassword = $true 
             PSDscAllowDomainUser = $true
+            DomainName = 'SolarSystem.Home'
+            JoinOU     = 'OU=Servers,OU=BRE,OU=UK,DC=SolarSystem,DC=Home'
+        },
+        @{     
+            NodeName = "LocalHost" 
         },             
         @{     
             NodeName = "SSTC01" 
-            # Allows credential to be saved in plain-text in the the *.mof instance document.                             
-            PSDscAllowPlainTextPassword = $true 
-            PSDscAllowDomainUser = $true
         } 
     )
     HyperVHost  = 'SSAPP03'

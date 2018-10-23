@@ -9,7 +9,7 @@ $node = $config.AllNodes | Where NodeName -eq $nodeName
 
     
 Describe "The VM -- $NodeName" {
-        
+       
     $vm = get-vm -name $NodeName -ErrorAction SilentlyContinue
         
     It 'Is created' {
@@ -20,7 +20,7 @@ Describe "The VM -- $NodeName" {
         $vm.state | Should -Be 'Running'
     }
 
-    $lease = get-dhcpserverv4lease -computername $config.DhcpServer -ScopeId $($config.DhcpScope) -clientId $vm.networkadapters[0].MacAddress
+    $lease = get-dhcpserverv4lease -computername $config.DhcpServer -ScopeId $($config.DhcpScope) -clientId $vm.networkadapters[0].MacAddress -ErrorAction SilentlyContinue
     
     It 'Has 1 DHCP lease' {
         $lease.IpAddress.Count | Should -Be 1
@@ -74,6 +74,5 @@ Describe "The VM -- $NodeName" {
     It 'The webserver returns status 200' {
         $result = Invoke-WebRequest -Uri http://sstc01.solarsystem.home:8111
         $result.StatusCode | Should -Be 200
-
     }
 }
