@@ -1,1 +1,1 @@
-*.rb linguist-language=PowerShell
+*.ps1 linguist-language=PowerShell
