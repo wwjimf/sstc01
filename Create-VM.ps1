@@ -3,9 +3,20 @@
 #Requires -Modules ActiveDirectory, Hyper-V, DhcpServer, PSDesiredStateConfiguration, PackageManagementProviderResource, ComputerManagementDsc, cChoco
 
 Param (
+    [Parameter()]
+    [String]
     $nodeName = 'SSTC01',
+
+    [Parameter()]
+    [String]
     $ConfigDataPath = ("$PsScriptRoot\configdata.psd1"),
+
+    [Parameter()]
+    [System.Management.Automation.PSCredential]
     $DomainJoinCredential = (Get-Credential -Message "Please enter the Domain Join Credential"),
+
+    [Parameter()]
+    [System.Management.Automation.PSCredential]
     $TeamCityCredential = (Get-Credential -Message "Please enter the TeamCity Service Account Credential")
 )
 
@@ -13,7 +24,6 @@ $Config = Import-PowerShellDataFile -Path $ConfigDataPath
 
 # clean up any pre-existing vm
 if (Get-VM -Name $nodeName -ErrorAction SilentlyContinue -OutVariable v) {
-    
     ## Function CleanUpVM
     If($v.State -eq 'Running') {
         $v | Stop-VM -Force -Verbose
@@ -25,10 +35,10 @@ if (Get-VM -Name $nodeName -ErrorAction SilentlyContinue -OutVariable v) {
     If ( Get-DnsServerResourceRecord -Name $nodeName -ComputerName $Config.DnsServer -ZoneName $Config.DnsZone) {
         Remove-DnsServerResourceRecord -computername $Config.DnsServer -ZoneName $Config.DnsZone -Name $nodeName -RRType A -Force -Confirm:$false -Verbose
         Remove-DnsServerResourceRecord -computername $Config.DnsServer -ZoneName $Config.DnsZone -Name $nodeName -RRType AAAA -Force -Confirm:$false -Verbose
-    }    
-    
+    }
+
     $v | Remove-VM -Force -Verbose
-    
+
     Start-Sleep -Seconds 5
 
     $comp = Get-AdComputer -Identity $nodeName -ErrorAction SilentlyContinue
@@ -90,7 +100,7 @@ Set-VM -Name SSTC01 -ProcessorCount 2 -DynamicMemory
 ## Function InjectVmFiles
 $mount = Mount-vhd -Path $vmDisk -passthru
 
-$drv = ($mount | get-disk | Get-Partition | Get-Volume | Where DriveLetter).DriveLetter
+$drv = ($mount | get-disk | Get-Partition | Get-Volume | Where-Object DriveLetter).DriveLetter
 
 $remRoot        = "$drv`:"
 $remUnattend    = "$remRoot\Windows\Panther"
@@ -136,9 +146,9 @@ While($complete -eq $false) {
         $results
     } else {
         Clear-Host
-        $results.TestResult | where Result -eq 'Failed'
+        $results.TestResult | Where-Object Result -eq 'Failed'
         $sleep = 30
         Write-Progress -id 1 -Activity "Waiting for vm build and config to complete" -Status "Sleeping for $sleep seconds" -PercentComplete -1
         start-sleep -seconds $sleep
-    }   
+    }
 }

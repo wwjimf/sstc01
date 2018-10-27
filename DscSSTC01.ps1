@@ -78,5 +78,19 @@ Configuration InitialSetup
             DestinationPath = 'C:\TeamCity\conf\teamcity-startup.properties'
             Dependson = '[cChocoPackageInstaller]installTeamCity'
         }
+
+        cChocoPackageInstaller installTCBuildAgent
+        {
+            Name      = 'TeamCityAgent'
+            Ensure    = 'Present'
+            Params    = $paramstring
+            Dependson = '[cChocoInstaller]installChoco'
+        }
+        cChocoPackageInstaller GitClient
+        {
+            Name      = 'GIT'
+            Ensure    = 'Present'
+            Dependson = '[cChocoInstaller]installChoco'
+        }
     }
 }
